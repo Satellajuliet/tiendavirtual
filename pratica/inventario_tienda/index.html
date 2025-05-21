@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventario - Tienda de Comestibles</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .contenedor {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    input, button {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      box-sizing: border-box;
+    }
+    input[type="submit"], button {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background: white;
+      box-shadow: 0 0 10px #ccc;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    .eliminar {
+      color: red;
+      cursor: pointer;
+    }
+    .cerrar {
+      float: right;
+      margin-top: -10px;
+      background: #dc3545;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN Y REGISTRO -->
+  <div class="contenedor" id="pantalla-inicial">
+    <h2>Iniciar Sesión o Registrarse</h2>
+    <input type="text" id="usuario" placeholder="Usuario">
+    <input type="password" id="clave" placeholder="Contraseña">
+    <input type="submit" value="Iniciar Sesión" onclick="iniciarSesion()">
+    <input type="submit" value="Registrarse" onclick="registrarse()">
+  </div>
+
+  <!-- INVENTARIO -->
+  <div class="contenedor" id="pantalla-inventario" style="display:none;">
+    <button class="cerrar" onclick="cerrarSesion()">Cerrar Sesión</button>
+    <h1>Inventario - Tienda de Comestibles</h1>
+
+    <form id="formulario-producto">
+      <input type="text" id="nombre" placeholder="Nombre del producto" required>
+      <input type="number" id="cantidad" placeholder="Cantidad" required>
+      <input type="number" id="precio" placeholder="Precio (USD)" step="0.01" required>
+      <input type="submit" value="Agregar Producto">
+    </form>
+
+
+    <table id="tabla-productos">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Cantidad</th>
+          <th>Precio</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Los productos aparecerán aquí -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+  let usuarioActivo = localStorage.getItem('sesionActiva');
+  let usuarios = JSON.parse(localStorage.getItem('usuarios')) || [];
+
+  function mostrarInventario() {
+    document.getElementById('pantalla-inicial').style.display = 'none';
+    document.getElementById('pantalla-inventario').style.display = 'block';
+    cargarProductos();
+  }
+
+  function registrarUsuario(nombre, clave) {
+    if (usuarios.some(u => u.usuario === nombre)) {
+      alert('El usuario ya existe.');
+      return false;
+    }
+    usuarios.push({ usuario: nombre, clave });
+    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+    return true;
+  }
+
+  function iniciarSesion() {
+    const nombre = document.getElementById('usuario').value.trim();
+    const clave = document.getElementById('clave').value;
+
+    if (!nombre || !clave) {
+      alert('Por favor, complete todos los campos.');
+      return;
+    }
+
+    const usuarioValido = usuarios.find(u => u.usuario === nombre && u.clave === clave);
+
+    if (usuarioValido) {
+      localStorage.setItem('sesionActiva', nombre);
+      usuarioActivo = nombre;
+      mostrarInventario();
+    } else {
+      alert('Usuario o contraseña incorrectos o no registrados.');
+    }
+  }
+
+  function registrarse() {
+    const nombre = document.getElementById('usuario').value.trim();
+    const clave = document.getElementById('clave').value;
+
+    if (!nombre || !clave) {
+      alert('Por favor, complete todos los campos para registrarse.');
+      return;
+    }
+
+    if (registrarUsuario(nombre, clave)) {
+      alert('Registrado exitosamente. Ahora puedes iniciar sesión.');
+    }
+  }
+
+  function cerrarSesion() {
+    localStorage.removeItem('sesionActiva');
+    location.reload();
+  }
+
+  // INVENTARIO
+  const formulario = document.getElementById('formulario-producto');
+  const tabla = document.getElementById('tabla-productos').querySelector('tbody');
+  let productos = [];
+
+  function guardarEnLocalStorage() {
+    let inventario = JSON.parse(localStorage.getItem('inventario')) || {};
+    inventario[usuarioActivo] = productos;
+    localStorage.setItem('inventario', JSON.stringify(inventario));
+  }
+
+  function cargarProductos() {
+    let inventario = JSON.parse(localStorage.getItem('inventario')) || {};
+    productos = inventario[usuarioActivo] || [];
+    renderizarTabla();
+  }
+
+  function renderizarTabla() {
+    tabla.innerHTML = '';
+    productos.forEach((producto, index) => {
+      const fila = document.createElement('tr');
+      fila.innerHTML = `
+        <td>${producto.nombre}</td>
+        <td>${producto.cantidad}</td>
+        <td>$${producto.precio.toFixed(2)}</td>
+        <td><span class="eliminar" onclick="eliminarProducto(${index})">🗑️</span></td>
+      `;
+      fila.innerHTML = `
+        <td><input type="text" value="${producto.nombre}" onchange="editarProducto(${index}, 'nombre', this.value)"></td>
+        <td><input type="number" value="${producto.cantidad}" onchange="editarProducto(${index}, 'cantidad', this.value)"></td>
+        <td><input type="number" step="0.01" value="${producto.precio}" onchange="editarProducto(${index}, 'precio', this.value)"></td>
+        <td><span class="eliminar" onclick="eliminarProducto(${index})">🗑️</span></td>
+    `;
+
+      tabla.appendChild(fila);
+    });
+  }
+
+  function editarProducto(index, campo, valor) {
+  if (campo === 'cantidad' || campo === 'precio') {
+    valor = parseFloat(valor);
+    if (isNaN(valor)) return;
+  }
+  productos[index][campo] = valor;
+  guardarEnLocalStorage();
+  renderizarTabla(); // Refresca la tabla
+  }
+
+  function eliminarProducto(index) {
+    productos.splice(index, 1);
+    guardarEnLocalStorage();
+    renderizarTabla();
+  }
+
+  formulario.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('nombre').value.trim();
+    const cantidad = parseInt(document.getElementById('cantidad').value);
+    const precio = parseFloat(document.getElementById('precio').value);
+
+    if (!nombre || isNaN(cantidad) || isNaN(precio)) return;
+
+    productos.push({ nombre, cantidad, precio });
+    guardarEnLocalStorage();
+    renderizarTabla();
+    formulario.reset();
+  });
+
+  // Mostrar inventario si ya hay sesión iniciada
+  if (usuarioActivo) mostrarInventario();
+</script>
+
+</body>
+</html>
